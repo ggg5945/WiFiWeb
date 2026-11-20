@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WiFiWeb 无线网络管理 · 交互原型</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif; font-size: 14px; background: #f2f4f7; color: #2c3e50; }
+  a { color: #4a6fc0; }
+
+  /* ===== 顶栏 ===== */
+  header { background: linear-gradient(180deg, #6479fb, #5a6af0); color: #fff; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .hamburger { display: none; border: none; background: none; color: #fff; font-size: 22px; cursor: pointer; padding: 2px 6px; line-height: 1; }
+  .hdr-title { font-size: 17px; font-weight: bold; }
+  header .brand { font-size: 18px; font-weight: bold; }
+  header .brand small { font-size: 12px; opacity: .75; margin-left: 10px; font-weight: normal; }
+  .conn-pill { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3); border-radius: 14px; padding: 4px 14px; font-size: 13px; }
+  .conn-pill .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #6fce6f; margin-right: 6px; }
+  .conn-pill.off .dot { background: #d9534f; }
+
+  /* ===== 左侧全高菜单布局（Argon 风格） ===== */
+  .layout { display: flex; min-height: 100vh; align-items: stretch; }
+  nav { width: 200px; flex-shrink: 0; background: #fff; color: #4a5568; padding: 0 0 14px; display: flex; flex-direction: column; border-right: 1px solid #e8ecf2; }
+  nav .logo { padding: 26px 10px 6px; text-align: center; font-size: 24px; font-weight: bold; color: #5a6af0; letter-spacing: .5px; }
+  nav .logo-sub { text-align: center; font-size: 11px; color: #9aa5b5; padding: 0 10px 18px; }
+  nav .tab { border: none; background: none; padding: 12px 16px; font-size: 14px; color: #4a5568; cursor: pointer; text-align: left; border-radius: 8px; margin: 2px 10px; display: flex; align-items: center; gap: 10px; }
+  nav .tab:hover { color: #5a6af0; background: #f0f3fa; }
+  nav .tab.active { color: #fff; font-weight: bold; background: #5a6af0; }
+  nav .tab .ico { font-size: 15px; width: 18px; text-align: center; }
+  nav .proto-badge { margin: auto 14px 0; font-size: 11px; color: #8a733a; background: #fdf6e3; border: 1px solid #f0dfa8; border-radius: 3px; padding: 4px 8px; line-height: 1.5; }
+  .drawer-mask { display: none; position: fixed; inset: 0; background: rgba(15,25,45,.45); z-index: 110; }
+  body.drawer-open .drawer-mask { display: block; }
+
+  .main-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .main-col main { flex: 1; margin: 0; padding: 16px 18px 60px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  h2.page-title { font-size: 16px; color: #35508c; margin: 6px 0 12px; }
+
+  /* ===== 卡片 ===== */
+  .card { background: #fff; border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(70,90,160,.10); margin-bottom: 16px; overflow: hidden; }
+  .card .card-head { padding: 10px 16px; border-bottom: 1px solid #eef1f5; font-weight: bold; color: #35508c; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; }
+  .card .card-body { padding: 16px; }
+  .kv { display: grid; grid-template-columns: 130px 1fr; row-gap: 10px; column-gap: 12px; }
+  .kv dt { color: #7a8a9a; text-align: right; }
+  .kv dd { color: #2c3e50; }
+
+  /* ===== 表格 ===== */
+  table.list { width: 100%; border-collapse: collapse; }
+  table.list th { background: #eef3fb; color: #24425c; text-align: left; padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #dfe7f2; }
+  table.list td { padding: 10px 12px; border-bottom: 1px solid #eef1f5; vertical-align: middle; }
+  table.list tbody tr:nth-child(even) { background: #f6f8fa; }
+  table.list tbody tr:hover { background: #f0f5ff; }
+  table.list td.actions { text-align: right; }
+  .cur-conn { color: #1e7e34; font-weight: bold; }
+
+  /* ===== 信号图标 ===== */
+  .sig { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; margin-right: 8px; vertical-align: middle; }
+  .sig i { display: inline-block; width: 4px; background: #d5dbe2; border-radius: 1px; }
+  .sig i:nth-child(1) { height: 6px; }
+  .sig i:nth-child(2) { height: 9px; }
+  .sig i:nth-child(3) { height: 12px; }
+  .sig i:nth-child(4) { height: 15px; }
+  .sig.s1 i:nth-child(1) { background: #5a6af0; }
+  .sig.s2 i:nth-child(-n+2) { background: #5a6af0; }
+  .sig.s3 i:nth-child(-n+3) { background: #5a6af0; }
+  .sig.s4 i { background: #5a6af0; }
+  .sig-badge { background: #eef1f5; border-radius: 3px; padding: 3px 8px; font-size: 12px; color: #556; }
+  .hidden-ssid { color: #8a95a3; font-style: italic; }
+
+  /* ===== 按钮 ===== */
+  .btn { display: inline-block; border: 1px solid transparent; border-radius: 4px; padding: 6px 16px; font-size: 13px; cursor: pointer; background: #eef1f5; color: #2c3e50; }
+  .btn:hover { background: #e2e7ee; }
+  .btn.primary { background: #5a6af0; color: #fff; }
+  .btn.primary:hover { background: #4a6fc0; }
+  .btn.danger { background: #fff; color: #d9534f; border-color: #d9534f; }
+  .btn.danger:hover { background: #fdf2f2; }
+  .btn.small { padding: 4px 12px; font-size: 12px; }
+  .btn[disabled] { opacity: .5; cursor: not-allowed; }
+  .toolbar { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 16px; border-top: 1px solid #eef1f5; }
+  .toolbar.top { justify-content: flex-start; border-top: none; border-bottom: 1px solid #eef1f5; }
+
+  /* ===== 开关 ===== */
+  .switch { position: relative; display: inline-block; width: 34px; height: 18px; }
+  .switch input { display: none; }
+  .switch .slider { position: absolute; inset: 0; background: #c9d1da; border-radius: 9px; transition: .2s; cursor: pointer; }
+  .switch .slider::before { content: ""; position: absolute; width: 14px; height: 14px; left: 2px; top: 2px; background: #fff; border-radius: 50%; transition: .2s; }
+  .switch input:checked + .slider { background: #5a6af0; }
+  .switch input:checked + .slider::before { transform: translateX(16px); }
+
+  /* ===== 弹窗 ===== */
+  .modal-mask { display: none; position: fixed; inset: 0; background: rgba(20,30,45,.5); z-index: 100; align-items: flex-start; justify-content: center; padding-top: 12vh; }
+  .modal-mask.show { display: flex; }
+  .modal { background: #fff; border-radius: 6px; width: 460px; max-width: 92vw; box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+  .modal .m-head { padding: 12px 18px; font-weight: bold; color: #35508c; border-bottom: 1px solid #eef1f5; font-size: 15px; }
+  .modal .m-body { padding: 16px 18px; }
+  .modal .m-foot { padding: 12px 18px; border-top: 1px solid #eef1f5; text-align: right; display: flex; justify-content: flex-end; gap: 10px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; margin-bottom: 6px; color: #5a6a7a; font-size: 13px; }
+  .field input[type=text], .field input[type=password] { width: 100%; padding: 8px 10px; border: 1px solid #ccd4dd; border-radius: 4px; font-size: 14px; }
+  .field input:focus { outline: none; border-color: #5a6af0; box-shadow: 0 0 0 2px rgba(91,127,209,.15); }
+  .field .hint { font-size: 12px; color: #8a95a3; margin-top: 5px; }
+  .pwd-wrap { position: relative; }
+  .pwd-eye { position: absolute; right: 10px; top: 7px; font-size: 12px; color: #5a6af0; cursor: pointer; user-select: none; }
+  .chk-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #5a6a7a; }
+
+  /* 连接中 */
+  .spinner { width: 26px; height: 26px; border: 3px solid #dfe7f2; border-top-color: #5a6af0; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .progress-text { text-align: center; color: #5a6a7a; }
+  .result-ok { text-align: center; color: #1e7e34; font-weight: bold; margin-bottom: 12px; }
+  .result-fail { text-align: center; color: #d9534f; font-weight: bold; margin-bottom: 12px; }
+
+  /* 提示条 */
+  #toast { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%); background: #323e4d; color: #fff; padding: 9px 20px; border-radius: 4px; font-size: 13px; opacity: 0; transition: .3s; z-index: 200; pointer-events: none; }
+  #toast.show { opacity: 1; }
+
+  /* 扫描中占位 */
+  .scanning-row td { text-align: center; color: #8a95a3; padding: 26px 0; }
+
+  /* 原型演示开关 */
+  .demo-bar { margin-top: 26px; padding: 10px 16px; border: 1px dashed #c9b37e; background: #fdf9ec; border-radius: 4px; font-size: 12px; color: #8a733a; display: flex; gap: 16px; align-items: center; }
+
+  /* ===== 手机适配 ===== */
+  @media (max-width: 640px) {
+    header { padding: 10px 12px; }
+    .conn-pill { font-size: 12px; padding: 3px 10px; }
+    .hamburger { display: block; }
+    .layout { flex-direction: column; }
+    nav { position: fixed; left: 0; top: 0; bottom: 0; width: 220px; z-index: 120; transform: translateX(-100%); transition: transform .25s ease; box-shadow: 4px 0 16px rgba(0,0,0,.15); overflow-y: auto; }
+    body.drawer-open nav { transform: translateX(0); }
+    nav .proto-badge { display: none; }
+    .main-col main { padding: 12px 10px 40px; }
+    .card .card-head, .card .card-body { padding-left: 12px; padding-right: 12px; }
+    .toolbar { padding: 10px 12px; flex-wrap: wrap; }
+    .demo-bar { flex-wrap: wrap; }
+
+    /* 概览：键值对改单列 */
+    .kv { grid-template-columns: 1fr; row-gap: 4px; }
+    .kv dt { text-align: left; color: #8a95a3; font-size: 12px; }
+    .kv dd { margin: 0 0 6px; }
+
+    /* 扫描/已保存：表格变卡片式列表 */
+    table.mob { min-width: 0; }
+    table.mob thead { display: none; }
+    table.mob tbody tr { display: block; border-bottom: 1px solid #e6ebf2; padding: 10px 0; margin: 0 12px; }
+    table.mob tbody tr:nth-child(even), table.mob tbody tr:hover { background: transparent; }
+    table.mob td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 5px 0; border-bottom: none; text-align: right; }
+    table.mob td::before { content: attr(data-label); color: #8a95a3; font-size: 12px; text-align: left; flex-shrink: 0; }
+    table.mob td.actions { justify-content: flex-end; padding-top: 8px; }
+    table.mob td.actions::before { content: none; }
+    table.mob tr.scanning-row td { display: block; }
+
+    /* 原型说明：宽表格横向滚动 */
+    #screen-doc .card-body { overflow-x: auto; }
+    #screen-doc table.list { min-width: 480px; }
+
+    /* 弹窗 */
+    .modal { width: 92vw; }
+    .modal .m-body, .modal .m-foot { padding-left: 12px; padding-right: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="drawer-mask" onclick="document.body.classList.remove('drawer-open')"></div>
+
+<div class="layout">
+<nav>
+  <div class="logo">📶 WiFiWeb</div>
+  <div class="logo-sub">无线网络管理 · Windows</div>
+  <button class="tab active" data-screen="overview"><span class="ico">🏠</span>概览</button>
+  <button class="tab" data-screen="scan"><span class="ico">📡</span>扫描并加入网络</button>
+  <button class="tab" data-screen="saved"><span class="ico">💾</span>已保存网络</button>
+  <button class="tab" data-screen="doc"><span class="ico">📖</span>原型说明</button>
+  <span class="proto-badge">交互原型 · 静态演示数据</span>
+</nav>
+
+<div class="main-col">
+
+<header>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button class="hamburger" onclick="document.body.classList.add('drawer-open')">☰</button>
+    <span class="hdr-title" id="hdrTitle">概览</span>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:4px 12px;font-size:13px;"><span style="opacity:.9">⇄</span>&nbsp;WLAN</span>
+    <div class="conn-pill" id="connPill"><span class="dot"></span><span id="pillText">已连接：Demo-Net-A_5G</span></div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ 概览 ============ -->
+  <section class="screen active" id="screen-overview">
+    <h2 class="page-title">无线状态</h2>
+
+    <div class="card">
+      <div class="card-head">当前连接 <span id="ovIfName" style="font-weight:normal;color:#8a95a3;font-size:12px">接口：WLAN</span></div>
+      <div class="card-body" id="ovConnected">
+        <dl class="kv">
+          <dt>状态</dt><dd class="cur-conn" id="ovState">已连接</dd>
+          <dt>SSID</dt><dd id="ovSsid">Demo-Net-A_5G</dd>
+          <dt>BSSID</dt><dd id="ovBssid">1A:2B:3C:4D:5E:01</dd>
+          <dt>信号强度</dt><dd id="ovSig"><span class="sig s4"><i></i><i></i><i></i><i></i></span><span class="sig-badge">-46 dBm（92%）</span></dd>
+          <dt>信道 / 频段</dt><dd id="ovCh">36（5 GHz）</dd>
+          <dt>加密方式</dt><dd id="ovEnc">WPA2-PSK (CCMP)</dd>
+          <dt>IPv4 地址</dt><dd id="ovIp">192.0.2.23</dd>
+          <dt>IPv6 地址</dt><dd id="ovIpv6">2001:db8::a1b2:c3d4:e5f6</dd>
+        </dl>
+      </div>
+      <div class="card-body" id="ovDisconnected" style="display:none">
+        <p style="color:#8a95a3; padding:14px 0;">当前未连接任何无线网络。可前往「扫描并加入网络」选择要连接的热点。</p>
+        <button class="btn primary" onclick="goto('scan')">去扫描网络</button>
+      </div>
+      <div class="toolbar">
+        <button class="btn" onclick="refreshOverview()">刷新状态</button>
+        <button class="btn danger" id="btnDisconnect" onclick="confirmDisconnect()">断开连接</button>
+      </div>
+    </div>
+
+    <div class="demo-bar">
+      原型演示开关：
+      <label><input type="radio" name="demoState" checked onchange="setDemoState(true)"> 模拟“已连接”状态</label>
+      <label><input type="radio" name="demoState" onchange="setDemoState(false)"> 模拟“未连接”状态</label>
+    </div>
+  </section>
+
+  <!-- ============ 扫描 ============ -->
+  <section class="screen" id="screen-scan">
+    <h2 class="page-title">加入网络：搜索无线</h2>
+
+    <div class="card">
+      <div class="toolbar top">
+        <button class="btn primary" id="btnScan" onclick="doScan()">🔄 重新扫描</button>
+        <button class="btn" id="btnStopScan" onclick="stopScan()">停止刷新</button>
+        <span style="flex:1"></span>
+        <button class="btn" onclick="openManual()">➕ 手动添加网络</button>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table class="list mob">
+          <thead>
+            <tr><th>信号</th><th>SSID</th><th>频段</th><th>信道</th><th>模式</th><th>BSSID</th><th>加密</th><th style="text-align:right">操作</th></tr>
+          </thead>
+          <tbody id="scanRows"></tbody>
+        </table>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#8a95a3;">说明：列表按信号强度从强到弱排序；同名 SSID 有多个 BSSID（Mesh）时按 BSSID 展开为多行；隐藏网络显示为“隐藏”，加入时需手动输入 SSID；也可通过“手动添加网络”直接输入 SSID 和密码连接。</p>
+  </section>
+
+  <!-- ============ 已保存网络 ============ -->
+  <section class="screen" id="screen-saved">
+    <h2 class="page-title">已保存的网络配置</h2>
+
+    <div class="card">
+      <div class="card-body" style="padding:0">
+        <table class="list mob">
+          <thead><tr><th>SSID</th><th>加密</th><th>自动连接</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+          <tbody id="savedRows"></tbody>
+        </table>
+      </div>
+      <div class="toolbar">
+        <button class="btn" onclick="goto('scan')">➕ 添加新网络（扫描）</button>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#8a95a3;">说明：忘记网络 = 删除 Windows 已保存的 WLAN 配置文件，下次连接需重新输入密码。</p>
+  </section>
+
+<!-- ============ 原型说明 ============ -->
+  <section class="screen" id="screen-doc">
+    <h2 class="page-title">原型说明</h2>
+
+    <div class="card">
+      <div class="card-head">已确认的决策</div>
+      <div class="card-body" style="padding:0">
+        <table class="list">
+          <thead><tr><th style="width:140px">项</th><th>决策</th></tr></thead>
+          <tbody>
+            <tr><td>架构</td><td>前后端分离：FastAPI 提供 REST API（JSON），前端为独立静态页面（原生 JS 单页，无构建步骤），由后端静态托管</td></tr>
+            <tr><td>无线操作</td><td>原生 WLAN API（wlanapi.dll，ctypes 调用）+ <code>netsh wlan</code> 兜底，无第三方依赖</td></tr>
+            <tr><td>多网卡</td><td>支持多张无线网卡的选择/切换（顶栏网卡胶囊），选择持久化到 app.properties；配置文件严格跟随所选适配器（Windows 按适配器分开存储）</td></tr>
+            <tr><td>访问控制</td><td>局域网内均可访问，无登录口令；应用自身仅用 app.properties 保存选中网卡与自动刷新配置（无数据库），已保存网络由 Windows WLAN 配置文件按适配器管理</td></tr>
+            <tr><td>端口</td><td><b>8086</b></td></tr>
+            <tr><td>隐藏网络</td><td>支持"手动添加网络"入口：直接输入 SSID + 密码（密码留空视为开放网络）</td></tr>
+            <tr><td>扫描列表</td><td>频段列（2.4 GHz / 5 GHz / 6 GHz），支持按 SSID 包含 / 频段 / BSSID 包含筛选</td></tr>
+            <tr><td>自动刷新</td><td>OpenWrt 式自动刷新：开关 + 间隔可调（3~600 秒），后端定时扫描并缓存，倒计时后端下发；无客户端心跳时自动停扫</td></tr>
+            <tr><td>启动方式</td><td>不做开机自启/服务，提供启动脚本（start.bat，自动提权并写入扫描位置策略旁路键）</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">页面结构（3 个功能页签；原型额外含「原型说明」）</div>
+      <div class="card-body">
+        <p style="font-size:13px;color:#5a6a7a;">顶栏显示页面标题、<b>⇄ 当前无线网卡</b>（点击弹出选择窗，支持取消 / ESC 关闭）与全局连接状态；<b>左侧为菜单</b>（概览 / 扫描并加入网络 / 已保存网络），手机窄屏时菜单收纳为抽屉（☰ 展开）；页面通过 URL hash 记忆当前页签：</p>
+        <ul style="font-size:13px;color:#5a6a7a;line-height:1.9;margin:8px 0 0 20px;">
+          <li><b>概览</b> —— 当前无线状态 + 刷新状态 / 切换无线网卡 / 断开连接</li>
+          <li><b>扫描并加入网络</b> —— 顶部：重新扫描 | 自动刷新开关 + 间隔 + 倒计时 | 筛选（SSID 包含 / 频段 / BSSID 包含）| 手动添加网络；表格：信号|SSID|频段|信道|模式|BSSID|加密|加入</li>
+          <li><b>已保存网络</b> —— 当前网卡上的已保存配置：连接 / 自动连接开关 / 忘记；切换网卡后自动刷新</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">1. 概览</div>
+      <div class="card-body" style="font-size:13px;color:#5a6a7a;line-height:1.9;">
+        当前连接卡片：接口名、SSID、BSSID、信号强度（图标 + dBm + 链路质量%）、信道/频段、加密方式、IPv4、IPv6；系统"定位服务"关闭导致部分信息被系统隐藏时有明确提示。<br>
+        「刷新状态」重新读取当前无线接口状态；「切换无线网卡」入口在顶栏网卡胶囊；「断开连接」弹出二次确认，断开后切换为"未连接"空态，提供"去扫描网络"入口。<br>
+        左下角演示开关仅原型用，可切换"已连接 / 未连接"两种状态演示。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">2. 扫描并加入网络（对标 openwrt WiFi 桥接扫描界面）</div>
+      <div class="card-body" style="font-size:13px;color:#5a6a7a;line-height:1.9;">
+        顶部工具栏（在表格上方）：<b>🔄 重新扫描</b> / <b>自动刷新开关 + 间隔（3~600 秒）+ 倒计时</b> / <b>筛选（SSID 包含 / 频段 / BSSID 包含）</b> / <b>➕ 手动添加网络</b>（原型演示中简化为"停止刷新"按钮）。<br>
+        表格列：信号 | SSID | 频段 | 信道 | 模式 | BSSID | 加密 | 操作；信号列 = 信号条图标 + dBm（含链路质量%），按信号强度降序排列；列表增量更新不闪烁。<br>
+        同名 SSID 多 BSSID（Mesh）时按 BSSID 展开为多行；隐藏网络显示为"隐藏"（斜体），加入时需手动输入 SSID；扫描中（含切换网卡后首次进入）显示 spinner 占位行。<br>
+        「加入网络」弹窗：加密网络需输入密码（可切换明文，&lt;8 位禁用按钮）；开放网络无需密码并显示明文传输警告；隐藏网络额外出现 SSID 输入框；"保存此网络并自动连接"默认勾选；新配置只保存到当前选中的无线网卡。<br>
+        「手动添加网络」使用同一弹窗：手动输入 SSID + 密码，<b>密码留空视为开放网络</b>。<br>
+        连接进度弹窗：转圈 + "正在连接到 XXX"；成功后"完成"跳回概览；失败显示失败原因，可"修改密码重试"或"关闭"（原型演示中密码输入 <b>12345678</b> 可模拟失败）。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">3. 已保存网络</div>
+      <div class="card-body" style="font-size:13px;color:#5a6a7a;line-height:1.9;">
+        仅显示<b>当前选中无线网卡</b>上保存的配置（Windows 的 WLAN 配置文件按适配器分开存储，其他网卡保存的网络不会显示在这里）：SSID（当前连接带绿色标记）、加密、自动连接开关、状态、操作（连接 / 忘记，忘记需二次确认并只删除当前网卡上的配置）。<br>
+        切换网卡后列表自动刷新；当前网卡无保存网络时显示说明提示；底部「➕ 添加新网络（扫描）」跳转扫描页签。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">交互流程</div>
+      <div class="card-body">
+        <pre style="font-size:12px;color:#5a6a7a;line-height:1.8;">概览 ──去扫描──▶ 扫描列表 ──加入网络──▶ 密码弹窗 ──加入──▶ 连接中 ──成功──▶ 完成回概览
+  ▲                 │                                        │
+  │                 └──手动添加网络──▶ SSID+密码弹窗      失败：改密码重试 / 关闭
+已保存网络 ◀──忘记 / 切换自动连接──</pre>
+      </div>
+    </div>
+  </section>
+
+</main>
+</div>
+</div>
+
+<!-- ============ 加入网络弹窗 ============ -->
+<div class="modal-mask" id="joinModal">
+  <div class="modal">
+    <div class="m-head">加入网络：<span id="jmSsid"></span></div>
+    <div class="m-body">
+      <div class="field" style="display:flex;gap:24px;font-size:13px;color:#5a6a7a;flex-wrap:wrap;">
+        <span>BSSID：<b id="jmBssid"></b></span>
+        <span>加密：<b id="jmEnc"></b></span>
+      </div>
+      <div class="field" id="jmSsidField" style="display:none">
+        <label>网络名称（SSID）</label>
+        <input type="text" id="jmSsidInput" placeholder="输入 SSID" oninput="jmValidate()">
+        <div class="hint" id="jmSsidHint"></div>
+      </div>
+      <div class="field" id="jmPwdField">
+        <label>密码（WPA / WPA2 / WPA3 预共享密钥）</label>
+        <div class="pwd-wrap">
+          <input type="password" id="jmPwd" placeholder="输入 8 位以上无线密码" oninput="jmValidate()">
+          <span class="pwd-eye" onclick="togglePwd()">显示</span>
+        </div>
+        <div class="hint" id="jmPwdHint">连接失败时会保留在此页面，可修改密码重试。</div>
+      </div>
+      <div class="field" id="jmOpenNote" style="display:none">
+        <div class="hint" style="font-size:13px;color:#b8860b;">⚠ 此网络未加密，加入后数据将以明文传输，请确认是该环境的热点。</div>
+      </div>
+      <div class="field">
+        <label class="chk-line"><input type="checkbox" id="jmAuto" checked> 保存此网络并自动连接</label>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn" onclick="closeModal('joinModal')">取消</button>
+      <button class="btn primary" id="jmJoinBtn" onclick="startJoin()">加入网络</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 连接进度弹窗 ============ -->
+<div class="modal-mask" id="progressModal">
+  <div class="modal">
+    <div class="m-head">连接状态</div>
+    <div class="m-body">
+      <div id="pgRunning">
+        <div class="spinner"></div>
+        <div class="progress-text">正在连接到 <b id="pgSsid"></b> ……</div>
+        <div class="progress-text" style="font-size:12px;color:#8a95a3;margin-top:8px;">获取 IP 地址可能需要数秒，请勿关闭页面</div>
+      </div>
+      <div id="pgOk" style="display:none">
+        <div class="result-ok">✔ 已成功连接</div>
+        <div class="progress-text">SSID：<b id="pgOkSsid"></b> · 信号：<b id="pgOkSig"></b></div>
+      </div>
+      <div id="pgFail" style="display:none">
+        <div class="result-fail">✘ 连接失败</div>
+        <div class="progress-text" id="pgFailReason"></div>
+      </div>
+    </div>
+    <div class="m-foot" id="pgFoot">
+      <button class="btn" id="pgClose" style="display:none" onclick="closeModal('progressModal')">关闭</button>
+      <button class="btn" id="pgRetry" style="display:none" onclick="backToJoin()">修改密码重试</button>
+      <button class="btn primary" id="pgGo" style="display:none" onclick="afterJoin()">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 通用确认弹窗 ============ -->
+<div class="modal-mask" id="confirmModal">
+  <div class="modal" style="width:380px">
+    <div class="m-head">请确认</div>
+    <div class="m-body" id="cfText"></div>
+    <div class="m-foot">
+      <button class="btn" onclick="closeModal('confirmModal')">取消</button>
+      <button class="btn danger" id="cfOk">确认</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ================= 演示数据 ================= */
+let networks = [
+  { ssid: "Demo-Net-A_5G",              band: "5 GHz",   ch: 36,  mode: "Master", bssid: "1A:2B:3C:4D:5E:01", enc: "mixed WPA/WPA2 PSK (TKIP, CCMP)", dbm: -22, open: false },
+  { ssid: "Demo-Net-B_5G",   band: "5 GHz",   ch: 40,  mode: "Master", bssid: "1A:2B:3C:4D:5E:02", enc: "mixed WPA2/WPA3 PSK, SAE (CCMP)", dbm: -40, open: false },
+  { ssid: "隐藏",                 band: "5 GHz",   ch: 40,  mode: "Master", bssid: "1A:2B:3C:4D:5E:03", enc: "mixed WPA/WPA2 PSK (CCMP)",       dbm: -41, open: false, hidden: true },
+  { ssid: "CoffeeShop-Free",     band: "2.4 GHz", ch: 6,   mode: "Master", bssid: "1A:2B:3C:4D:5E:04", enc: "无（开放网络）",                   dbm: -55, open: true  },
+  { ssid: "Demo-Net-C_5G",  band: "5 GHz",   ch: 44,  mode: "Master", bssid: "1A:2B:3C:4D:5E:05", enc: "WPA2 PSK (CCMP)",                 dbm: -84, open: false },
+  { ssid: "Demo-Net-D_5G",              band: "5 GHz",   ch: 36,  mode: "Master", bssid: "1A:2B:3C:4D:5E:06", enc: "WPA2 PSK (CCMP)",                 dbm: -89, open: false },
+  { ssid: "Demo-AP-E_5G",        band: "5 GHz",   ch: 149, mode: "Master", bssid: "1A:2B:3C:4D:5E:07", enc: "mixed WPA/WPA2 PSK (CCMP)",       dbm: -89, open: false }
+];
+
+let savedList = [
+  { ssid: "Demo-Net-A_5G",            enc: "WPA2-PSK", auto: true,  connected: true  },
+  { ssid: "Demo-Net-B_5G", enc: "WPA2/WPA3-PSK", auto: true,  connected: false },
+  { ssid: "Demo-AP-E_5G",      enc: "WPA2-PSK", auto: false, connected: false },
+  { ssid: "Demo-Net-D_5G",            enc: "WPA2-PSK", auto: true,  connected: false }
+];
+
+let connected = true;
+let curConn = { ssid: "Demo-Net-A_5G", bssid: "1A:2B:3C:4D:5E:01", dbm: -46, ch: "36（5 GHz）", ip: "192.0.2.23" };
+let scanningTimer = null;
+let confirmAction = null;
+let joinTarget = null;
+
+/* ================= 通用 ================= */
+const SCREEN_LABELS = { overview: "概览", scan: "扫描并加入网络", saved: "已保存网络", doc: "原型说明" };
+function goto(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.screen === name));
+  document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === "screen-" + name));
+  document.getElementById("hdrTitle").textContent = SCREEN_LABELS[name] || "";
+  document.body.classList.remove("drawer-open");
+  if (name === "scan") renderScan();
+  if (name === "saved") renderSaved();
+  if (name === "overview") renderOverview();
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => goto(t.dataset.screen));
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+function openModal(id)  { document.getElementById(id).classList.add("show"); }
+function closeModal(id) { document.getElementById(id).classList.remove("show"); }
+
+function sigLevel(dbm) {
+  if (dbm >= -50) return 4;
+  if (dbm >= -65) return 3;
+  if (dbm >= -75) return 2;
+  return 1;
+}
+function sigHtml(dbm) {
+  return `<span class="sig s${sigLevel(dbm)}"><i></i><i></i><i></i><i></i></span>` +
+         `<span class="sig-badge">${dbm} dBm</span>`;
+}
+
+/* ================= 概览 ================= */
+function renderOverview() {
+  const pill = document.getElementById("connPill");
+  pill.classList.toggle("off", !connected);
+  document.getElementById("pillText").textContent = connected ? ("已连接：" + curConn.ssid) : "未连接";
+  document.getElementById("ovConnected").style.display = connected ? "" : "none";
+  document.getElementById("ovDisconnected").style.display = connected ? "none" : "";
+  document.getElementById("btnDisconnect").disabled = !connected;
+  document.getElementById("ovSsid").textContent = curConn.ssid;
+  document.getElementById("ovBssid").textContent = curConn.bssid;
+  document.getElementById("ovSig").innerHTML = sigHtml(curConn.dbm);
+  document.getElementById("ovCh").textContent = curConn.ch;
+  document.getElementById("ovIp").textContent = curConn.ip;
+}
+function refreshOverview() { toast("已刷新当前无线状态"); renderOverview(); }
+function setDemoState(on) {
+  connected = on;
+  renderOverview();
+  toast(on ? "已切换为【已连接】演示" : "已切换为【未连接】演示");
+}
+function confirmDisconnect() {
+  askConfirm(`确定要断开与 <b>${curConn.ssid}</b> 的连接吗？<br><span style="font-size:12px;color:#8a95a3">断开后可通过“已保存网络”一键重连。</span>`, () => {
+    connected = false;
+    savedList.forEach(s => s.connected = false);
+    renderOverview();
+    toast("已断开连接");
+  });
+}
+function quickConnect(ssid) {
+  toast("正在连接 " + ssid + " ……");
+  setTimeout(() => {
+    connected = true;
+    curConn = { ssid, bssid: "1A:2B:3C:4D:5E:02", dbm: -40, ch: "40（5 GHz）", ip: "192.0.2.23" };
+    savedList.forEach(s => s.connected = (s.ssid === ssid));
+    renderOverview();
+    toast("已连接到 " + ssid);
+  }, 1200);
+}
+
+/* ================= 扫描 ================= */
+function renderScan() {
+  const list = [...networks].sort((a, b) => b.dbm - a.dbm);
+  const rows = list.map(n => {
+    const isCur = connected && n.ssid === curConn.ssid && n.bssid === curConn.bssid;
+    return `<tr>
+      <td data-label="信号">${sigHtml(n.dbm)}</td>
+      <td data-label="SSID">${n.hidden ? '<span class="hidden-ssid">隐藏</span>' : n.ssid}${isCur ? ' <span class="cur-conn">（已连接）</span>' : ""}</td>
+      <td data-label="频段">${n.band}</td>
+      <td data-label="信道">${n.ch}</td><td data-label="模式">${n.mode}</td><td data-label="BSSID">${n.bssid}</td><td data-label="加密">${n.enc}</td>
+      <td class="actions"><button class="btn primary small" ${isCur ? "disabled" : ""} onclick="openJoin(${JSON.stringify(n.ssid).replaceAll('"', "&quot;")}, '${n.bssid}', ${n.open}, ${n.hidden})">${isCur ? "已连接" : "加入网络"}</button></td>
+    </tr>`;
+  }).join("");
+  document.getElementById("scanRows").innerHTML = rows;
+}
+function doScan() {
+  document.getElementById("btnScan").disabled = true;
+  document.getElementById("scanRows").innerHTML =
+    `<tr class="scanning-row"><td colspan="8"><span class="spinner" style="display:inline-block;vertical-align:middle;margin-right:10px;width:18px;height:18px;border-width:2px;"></span>正在扫描附近的无线网络……</td></tr>`;
+  clearTimeout(scanningTimer);
+  scanningTimer = setTimeout(() => {
+    // 模拟信号波动
+    networks.forEach(n => { n.dbm += Math.floor(Math.random() * 5) - 2; });
+    document.getElementById("btnScan").disabled = false;
+    renderScan();
+    toast("扫描完成，共发现 " + networks.length + " 个网络");
+  }, 1500);
+}
+function stopScan() {
+  clearTimeout(scanningTimer);
+  document.getElementById("btnScan").disabled = false;
+  renderScan();
+  toast("已停止刷新");
+}
+
+/* ================= 加入网络 ================= */
+let manualMode = false;
+function openJoin(ssid, bssid, isOpen, hidden) {
+  manualMode = false;
+  const net = networks.find(n => n.ssid === ssid && n.bssid === bssid);
+  joinTarget = { ssid, bssid, isOpen, hidden, band: net ? net.band : "5 GHz", dbm: net ? net.dbm : -50, ch: net ? String(net.ch) : "-" };
+  document.getElementById("jmSsid").textContent = hidden ? "隐藏" : ssid;
+  document.getElementById("jmBssid").textContent = bssid;
+  document.getElementById("jmEnc").textContent = net ? net.enc : "WPA2-PSK";
+  document.getElementById("jmPwdField").style.display = isOpen ? "none" : "";
+  document.getElementById("jmOpenNote").style.display = isOpen ? "" : "none";
+  document.getElementById("jmSsidField").style.display = hidden ? "" : "none";
+  document.getElementById("jmSsidHint").textContent = "隐藏网络不会出现在扫描列表中，请输入准确的网络名称。";
+  document.getElementById("jmPwd").value = "";
+  document.getElementById("jmSsidInput").value = "";
+  document.getElementById("jmAuto").checked = true;
+  jmValidate();
+  openModal("joinModal");
+}
+function openManual() {
+  manualMode = true;
+  joinTarget = { ssid: "", bssid: "-", isOpen: false, hidden: true, manual: true, band: "5 GHz", dbm: -50, ch: "-" };
+  document.getElementById("jmSsid").textContent = "手动添加";
+  document.getElementById("jmBssid").textContent = "-";
+  document.getElementById("jmEnc").textContent = "自动判断（有密码按 WPA2-PSK，无密码按开放网络）";
+  document.getElementById("jmPwdField").style.display = "";
+  document.getElementById("jmOpenNote").style.display = "none";
+  document.getElementById("jmSsidField").style.display = "";
+  document.getElementById("jmSsidHint").textContent = "密码留空将按开放网络添加。";
+  document.getElementById("jmPwd").value = "";
+  document.getElementById("jmSsidInput").value = "";
+  document.getElementById("jmAuto").checked = true;
+  jmValidate();
+  openModal("joinModal");
+}
+function jmValidate() {
+  const pwd = document.getElementById("jmPwd").value;
+  const ssidShown = document.getElementById("jmSsidField").style.display !== "none";
+  const pwdShown = document.getElementById("jmPwdField").style.display !== "none";
+  const ssidOk = !ssidShown || document.getElementById("jmSsidInput").value.trim() !== "";
+  const pwdOk = !pwdShown || (manualMode && pwd === "") || pwd.length >= 8;
+  document.getElementById("jmJoinBtn").disabled = !ssidOk || !pwdOk;
+}
+function togglePwd() {
+  const p = document.getElementById("jmPwd");
+  const eye = document.querySelector(".pwd-eye");
+  const show = p.type === "password";
+  p.type = show ? "text" : "password";
+  eye.textContent = show ? "隐藏" : "显示";
+}
+function startJoin() {
+  if (joinTarget.manual || joinTarget.hidden) joinTarget.ssid = document.getElementById("jmSsidInput").value.trim();
+  const keep = document.getElementById("jmAuto").checked;
+  const pwd = document.getElementById("jmPwd").value;
+  if (joinTarget.manual && pwd === "") joinTarget.isOpen = true;
+  closeModal("joinModal");
+  document.getElementById("pgSsid").textContent = joinTarget.ssid;
+  document.getElementById("pgRunning").style.display = "";
+  document.getElementById("pgOk").style.display = "none";
+  document.getElementById("pgFail").style.display = "none";
+  document.getElementById("pgClose").style.display = "none";
+  document.getElementById("pgRetry").style.display = "none";
+  document.getElementById("pgGo").style.display = "none";
+  openModal("progressModal");
+
+  setTimeout(() => {
+    // 演示：密码为 12345678 时模拟“密码错误”失败，其余成功
+    if (!joinTarget.isOpen && pwd === "12345678") {
+      document.getElementById("pgRunning").style.display = "none";
+      document.getElementById("pgFail").style.display = "";
+      document.getElementById("pgFailReason").textContent = "原因：密钥不匹配（密码错误）。请重新输入。";
+      document.getElementById("pgRetry").style.display = "";
+      document.getElementById("pgClose").style.display = "";
+    } else {
+      document.getElementById("pgRunning").style.display = "none";
+      document.getElementById("pgOk").style.display = "";
+      document.getElementById("pgOkSsid").textContent = joinTarget.ssid;
+      document.getElementById("pgOkSig").textContent = joinTarget.dbm + " dBm";
+      document.getElementById("pgGo").style.display = "";
+      connected = true;
+      curConn = { ssid: joinTarget.ssid, bssid: joinTarget.bssid, dbm: joinTarget.dbm, ch: joinTarget.ch === "-" ? "-" : joinTarget.ch + "（" + joinTarget.band + "）", ip: "192.0.2.31" };
+      savedList.forEach(s => s.connected = false);
+      if (keep && !savedList.find(s => s.ssid === joinTarget.ssid)) {
+        savedList.unshift({ ssid: joinTarget.ssid, enc: joinTarget.isOpen ? "开放网络" : "WPA2-PSK", auto: true, connected: true });
+      } else {
+        const s = savedList.find(x => x.ssid === joinTarget.ssid);
+        if (s) s.connected = true;
+      }
+    }
+  }, 2000);
+}
+function backToJoin() {
+  closeModal("progressModal");
+  openModal("joinModal");
+}
+function afterJoin() {
+  closeModal("progressModal");
+  goto("overview");
+  toast("连接成功：" + curConn.ssid);
+}
+
+/* ================= 已保存网络 ================= */
+function renderSaved() {
+  const rows = savedList.map(s => `
+    <tr>
+      <td data-label="SSID">${s.ssid}</td>
+      <td data-label="加密">${s.enc}</td>
+      <td data-label="自动连接"><label class="switch"><input type="checkbox" ${s.auto ? "checked" : ""} onchange="toggleAuto('${s.ssid}', this.checked)"><span class="slider"></span></label></td>
+      <td data-label="状态">${s.connected ? '<span class="cur-conn">已连接</span>' : '<span style="color:#8a95a3">未连接</span>'}</td>
+      <td class="actions">
+        ${s.connected ? "" : `<button class="btn primary small" onclick="quickConnect('${s.ssid}')">连接</button>`}
+        <button class="btn danger small" onclick="forgetSaved('${s.ssid}')">忘记</button>
+      </td>
+    </tr>`).join("");
+  document.getElementById("savedRows").innerHTML = rows;
+}
+function toggleAuto(ssid, on) {
+  const s = savedList.find(x => x.ssid === ssid);
+  if (s) s.auto = on;
+  toast(`已${on ? "开启" : "关闭"}「${ssid}」自动连接`);
+}
+function forgetSaved(ssid) {
+  askConfirm(`确定要忘记网络 <b>${ssid}</b> 吗？<br><span style="font-size:12px;color:#8a95a3">将删除其保存的密码，重新连接时需再次输入。</span>`, () => {
+    savedList = savedList.filter(s => s.ssid !== ssid);
+    renderSaved();
+    toast("已忘记网络 " + ssid);
+  });
+}
+
+/* ================= 确认弹窗 ================= */
+function askConfirm(html, action) {
+  document.getElementById("cfText").innerHTML = html;
+  confirmAction = action;
+  openModal("confirmModal");
+}
+document.getElementById("cfOk").onclick = () => {
+  closeModal("confirmModal");
+  if (confirmAction) { const a = confirmAction; confirmAction = null; a(); }
+};
+
+/* ================= 初始化 ================= */
+renderOverview();
+</script>
+</body>
+</html>

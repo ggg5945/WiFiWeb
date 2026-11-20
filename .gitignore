@@ -1,0 +1,13 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# 运行日志 / 临时文件
+_start_log.txt
+_run_log.bat
+*.log
+
+# IDE
+.idea/
+.vscode/
